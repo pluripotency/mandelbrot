@@ -110,7 +110,7 @@ fn main() {
 
     if args.len() != 5 {
         writeln!(std::io::stderr(), "Usage: mandelbrot FILE PIXELS UPPERLEFT LOWERRIGHT").unwrap();
-        writeln!(std::io::stderr(), "Example: {} mandel.png 1000x750 -1.20,0.35 -1,0.20", args[0]).unwrap();
+        writeln!(std::io::stderr(), "Example: {} mandel.png 1000x750 -1.60,1 0.6,-1", args[0]).unwrap();
         std::process::exit(1);
     }
 
