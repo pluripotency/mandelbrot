@@ -98,6 +98,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "deque"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a694dae478589798d752c7125542f8a5ae8b6e59476172baf2eed67357bdfa27"
+
+[[package]]
 name = "either"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -168,7 +174,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8b7d43206b34b3f94ea9445174bda196e772049b9bddbc620c9d29b2d20110d"
 dependencies = [
  "byteorder",
- "rayon",
+ "rayon 1.0.2",
 ]
 
 [[package]]
@@ -199,6 +205,7 @@ dependencies = [
  "crossbeam",
  "image",
  "num",
+ "rayon 0.4.3",
 ]
 
 [[package]]
@@ -235,7 +242,7 @@ checksum = "e63899ad0da84ce718c14936262a41cee2c79c981fc0a0e7c7beb47d5a07e8c1"
 dependencies = [
  "num-integer",
  "num-traits 0.2.5",
- "rand",
+ "rand 0.4.3",
  "rustc-serialize",
 ]
 
@@ -318,6 +325,16 @@ dependencies = [
 
 [[package]]
 name = "rand"
+version = "0.3.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64ac302d8f83c0c1974bf758f6b041c6c8ada916fbb44a609158ca8b064cc76c"
+dependencies = [
+ "libc",
+ "rand 0.4.3",
+]
+
+[[package]]
+name = "rand"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8356f47b32624fef5b3301c1be97e5944ecdd595409cc5da11d05f211db6cfbd"
@@ -325,6 +342,18 @@ dependencies = [
  "fuchsia-zircon",
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "rayon"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f0783f5880c56f5a308e219ac9309dbe781e064741dd5def4c617c440890305"
+dependencies = [
+ "deque",
+ "libc",
+ "num_cpus",
+ "rand 0.3.23",
 ]
 
 [[package]]

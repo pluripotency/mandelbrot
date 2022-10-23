@@ -1,6 +1,7 @@
 extern crate num;
 extern crate image;
 extern crate crossbeam;
+extern crate rayon;
 
 use num::Complex;
 use std::str::FromStr;
@@ -8,6 +9,7 @@ use image::ColorType;
 use image:: png::PNGEncoder;
 use std::fs::File;
 use std::io::Write;
+use rayon::prelude::*;
 
 fn escape_time(c: Complex<f64>, limit: u32) -> Option<u32> {
     let mut z = Complex { re: 0.0, im: 0.0 };
@@ -81,8 +83,6 @@ fn render(pixels: &mut [u8],
     upper_left: Complex<f64>,
     lower_right: Complex<f64>)
 {
-    assert_eq!(pixels.len(), bounds.0 * bounds.1);
-
     for row in 0 .. bounds.1 {
         for column in 0 .. bounds.0 {
             let point = pixel_to_point(bounds, (column, row), upper_left, lower_right);
@@ -92,37 +92,12 @@ fn render(pixels: &mut [u8],
             };
         }
     }
-
 }
-
-fn write_image(filename: &str, pixels: &[u8], bounds: (usize, usize)) -> Result<(), std::io::Error>
+fn render_by_crossbeam(pixels: &mut [u8],
+                   bounds: (usize, usize),
+                   upper_left: Complex<f64>,
+                   lower_right: Complex<f64>)
 {
-    let output = File::create(filename)?;
-
-    let encoder = PNGEncoder::new(output);
-    encoder.encode(&pixels, bounds.0 as u32, bounds.1 as u32, ColorType::Gray(8))?;
-
-    Ok(())
-}
-
-fn main() {
-    let args: Vec<String> = std::env::args().collect();
-
-    if args.len() != 5 {
-        writeln!(std::io::stderr(), "Usage: mandelbrot FILE PIXELS UPPERLEFT LOWERRIGHT").unwrap();
-        writeln!(std::io::stderr(), "Example: {} mandel.png 1280x960 -2.0,1 0.6,-1", args[0]).unwrap();
-        std::process::exit(1);
-    }
-
-    let bounds = parse_pair(&args[2], 'x')
-        .expect("error parsing image dimensions");
-    let upper_left = parse_complex(&args[3])
-        .expect("error parsing upper left corner point");
-    let lower_right = parse_complex(&args[4])
-        .expect("error parsing lower right corner point");
-
-    let mut pixels = vec![0; bounds.0 * bounds.1];
-
     let threads = 8;
     let rows_per_band = bounds.1 / threads + 1;
     {
@@ -142,7 +117,86 @@ fn main() {
             }
         });
     }
-//    render(&mut pixels, bounds, upper_left, lower_right);
+}
+fn render_by_rayon(pixels: &mut [u8],
+                   bounds: (usize, usize),
+                   upper_left: Complex<f64>,
+                   lower_right: Complex<f64>)
+{
+    let bands: Vec<(usize, &mut[u8])> = pixels.chunks_mut(bounds.0).enumerate().collect();
+
+    bands.into_par_iter()
+        .weight_max()
+        .for_each(|(i, band)| {
+            let top = i;
+            let band_bounds = (bounds.0, 1);
+            let band_upper_left = pixel_to_point(bounds, (0, top), upper_left, lower_right);
+            let band_lower_right = pixel_to_point(bounds, (bounds.0, top + 1), upper_left, lower_right);
+            render(band, band_bounds, band_upper_left, band_lower_right);
+        });
+}
+
+fn write_image(filename: &str, pixels: &[u8], bounds: (usize, usize)) -> Result<(), std::io::Error>
+{
+    let output = File::create(filename)?;
+
+    let encoder = PNGEncoder::new(output);
+    encoder.encode(&pixels, bounds.0 as u32, bounds.1 as u32, ColorType::Gray(8))?;
+
+    Ok(())
+}
+
+fn help(args: Vec<String>){
+    writeln!(std::io::stderr(), "Usage: mandelbrot FILE PIXELS UPPERLEFT LOWERRIGHT RENDERMETHOD").unwrap();
+    writeln!(std::io::stderr(), "Example: {} mandel.png 1280x960 -2.0,1 0.6,-1 rayon", args[0]).unwrap();
+}
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+
+    let render_method = {
+        match args.len() {
+            5 => {
+                writeln!(std::io::stderr(), "selected render method is rayon").unwrap();
+                render_by_rayon
+            }
+            6 => {
+                match &*args[5] {
+                    "crossbeam" => {
+                        writeln!(std::io::stderr(), "selected render method is crossbeam").unwrap();
+                        render_by_crossbeam
+                    }
+                    "rayon" => {
+                        writeln!(std::io::stderr(), "selected render method is rayon").unwrap();
+                        render_by_rayon
+                    }
+                    "single" => {
+                        writeln!(std::io::stderr(), "selected render method is single").unwrap();
+                        render
+                    }
+                    _ => {
+                        writeln!(std::io::stderr(), "no such RENDERMETHOD: {}", args[5]).unwrap();
+                        writeln!(std::io::stderr(), "RENDERMETHOD(single|crossbeam|rayon)").unwrap();
+                        help(args);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            _ => {
+                help(args);
+                std::process::exit(1);
+            }
+        }
+    };
+    let bounds = parse_pair(&args[2], 'x')
+        .expect("error parsing image dimensions");
+    let upper_left = parse_complex(&args[3])
+        .expect("error parsing upper left corner point");
+    let lower_right = parse_complex(&args[4])
+        .expect("error parsing lower right corner point");
+
+    let mut pixels = vec![0; bounds.0 * bounds.1];
+    render_method(&mut pixels, bounds, upper_left, lower_right);
 
     write_image(&args[1], &pixels, bounds)
         .expect("error writing PNG file");
