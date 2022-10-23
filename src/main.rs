@@ -4,9 +4,9 @@ extern crate crossbeam;
 extern crate rayon;
 
 use num::Complex;
-use std::str::FromStr;
 use image::ColorType;
-use image:: png::PNGEncoder;
+use image::png::PNGEncoder;
+use std::str::FromStr;
 use std::fs::File;
 use std::io::Write;
 use rayon::prelude::*;
@@ -100,23 +100,21 @@ fn render_by_crossbeam(pixels: &mut [u8],
 {
     let threads = 8;
     let rows_per_band = bounds.1 / threads + 1;
-    {
-        let bands: Vec<&mut [u8]> = pixels.chunks_mut(rows_per_band * bounds.0).collect();
-        crossbeam::scope(|spawner| {
-            for (i, band) in bands.into_iter().enumerate() {
-                let top = rows_per_band * i;
-                let height = band.len() / bounds.0;
-                let band_bounds = (bounds.0, height);
-                let band_upper_left = pixel_to_point(bounds, (0, top), upper_left, lower_right);
-                let band_lower_right = pixel_to_point(bounds, (bounds.0, top + height), upper_left, lower_right);
+    let bands: Vec<&mut [u8]> = pixels.chunks_mut(rows_per_band * bounds.0).collect();
+    crossbeam::scope(|spawner| {
+        for (i, band) in bands.into_iter().enumerate() {
+            let top = rows_per_band * i;
+            let height = band.len() / bounds.0;
+            let band_bounds = (bounds.0, height);
+            let band_upper_left = pixel_to_point(bounds, (0, top), upper_left, lower_right);
+            let band_lower_right = pixel_to_point(bounds, (bounds.0, top + height), upper_left, lower_right);
 
-                spawner.spawn(move || {
-                    render(band, band_bounds, band_upper_left, band_lower_right);
-                });
+            spawner.spawn(move |_| {
+                render(band, band_bounds, band_upper_left, band_lower_right);
+            });
 
-            }
-        });
-    }
+        }
+    }).expect("error in crossbeam");
 }
 fn render_by_rayon(pixels: &mut [u8],
                    bounds: (usize, usize),
@@ -124,9 +122,7 @@ fn render_by_rayon(pixels: &mut [u8],
                    lower_right: Complex<f64>)
 {
     let bands: Vec<(usize, &mut[u8])> = pixels.chunks_mut(bounds.0).enumerate().collect();
-
     bands.into_par_iter()
-        .weight_max()
         .for_each(|(i, band)| {
             let top = i;
             let band_bounds = (bounds.0, 1);

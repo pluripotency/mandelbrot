@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Masayoshi Kokuryo <masakoku@gmail.com>"]
 
 [dependencies]
-num = "0.1.27"
+rayon = "1.5.3"
+crossbeam = "0.8.2"
+num = "0.4.0"
 image = "0.13.0"
-crossbeam = "0.2.8"
-rayon = "0.4"
